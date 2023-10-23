@@ -1,0 +1,14 @@
+image: python:3.8
+
+cache:
+  paths:
+    - .pip_cache/
+
+before_script:
+  # Use a cache directory for pip
+  - export PIP_CACHE_DIR=.pip_cache
+  - pip install -r requirements.txt
+
+test:
+  script:
+    - pytest

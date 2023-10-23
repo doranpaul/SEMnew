@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-TotalhrsApplication<totalhrs>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.webapp.totalhrs.TotalhrsApplication",
+            "projectName": "totalhrs",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

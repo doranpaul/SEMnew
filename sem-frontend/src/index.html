@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>StudentEngagementMonitoring</title>
+
+<script type="text/javascript">
+
+// original local URL's for functions
+//let maxminURL = "http://localhost:100/";
+//let sortedURL = "http://localhost:90/"
+//let totalURL= "http://localhost:1030/";
+//let engagementURL= "http://localhost:1100/";
+//let riskoffailureURL= "http://localhost:5000";
+//let suggestImprovementPlanURL= "http://localhost:8080/"
+
+const proxyURLs = [
+  "http://sem-proxy.40070680.qpc.hal.davecutting.uk/",
+  "http://sem-proxy.40070680.qpc.hal.davecutting.uk/",
+  // Add more proxy URLs as needed
+];
+
+// URL's following initial deployment to QPC
+//let suggestImprovementPlanURL= "http://sem-improvementplan.40070680.qpc.hal.davecutting.uk/"
+//let riskoffailureURL = "http://sem-riskoffail.40070680.qpc.hal.davecutting.uk";
+//let engagementURL = "http://sem-stdengagement.qpc.hal.davecutting.uk";
+//let totalURL = "http://sem-totalhours.40070680.qpc.hal.davecutting.uk";
+//let maxminURL = "http://sem-maxmin.40070680.qpc.hal.davecutting.uk";
+//let sortedURL = "http://sem-sort.40070680.qpc.hal.davecutting.uk/";
+
+
+// Utility function to handle HTTP requests with failover, this will be called in every function, added on 28/8/23
+function httpRequestWithFailover(serviceName, params, callback) {
+  let currentProxyIndex = 0;
+
+  function tryRequest() {
+    if (currentProxyIndex >= proxyURLs.length) {
+      callback("All proxies failed", null);
+      return;
+    }
+
+    let url = `${proxyURLs[currentProxyIndex]}${serviceName}?${params}`;
+    let xhttp = new XMLHttpRequest();
+
+    xhttp.onreadystatechange = function () {
+      if (xhttp.readyState === XMLHttpRequest.DONE) {
+        if (xhttp.status === 200) {
+          callback(null, xhttp.responseText);
+        } else {
+          console.error(`Error with proxy ${proxyURLs[currentProxyIndex]}: ${xhttp.status}`);
+          currentProxyIndex++;
+          tryRequest();
+        }
+      }
+    };
+
+    xhttp.open("GET", url, true);
+    xhttp.send();
+  }
+
+  tryRequest();
+}
+
+// displays the max and min values in the specified output field
+function displayMaxMin(max_attendance, min_attendance)
+{
+    document.getElementById('output-text').value = 'Maximum attendance = ' + max_attendance + ' hours'
+    + '\nMinimum attendance = ' + min_attendance + ' hours';
+}
+
+// displays the soted attendance in the specified output field
+function displaySortedAttendance(sorted_attendance)
+{
+    document.getElementById('output-text').value = sorted_attendance;
+}
+
+// clear text from input fields on frontend
+function clearText()
+{
+    document.getElementById('attendance_1').value = '';
+    document.getElementById('attendance_2').value = '';
+    document.getElementById('attendance_3').value = '';
+    document.getElementById('attendance_4').value = '';
+    document.getElementById('output-text').value = '';
+}
+
+// this function calculates the max and min values entered in the input fields
+function getMaxMin() {
+    let item_1 = document.getElementById('item_1').textContent
+    let item_2 = document.getElementById('item_2').textContent
+    let item_3 = document.getElementById('item_3').textContent
+    let item_4 = document.getElementById('item_4').textContent
+
+    let attendance_1 = document.getElementById('attendance_1').value
+    let attendance_2 = document.getElementById('attendance_2').value
+    let attendance_3 = document.getElementById('attendance_3').value
+    let attendance_4 = document.getElementById('attendance_4').value
+
+    // Check if any value is empty
+    if (!item_1 || !item_2 || !item_3 || !item_4 || !attendance_1 || !attendance_2 || !attendance_3 
+    || !attendance_4) {
+        alert("Please ensure all attendance fields are completed.");
+        return;
+    }
+    // ensures all entries are integers
+    if (isNaN(attendance_1) || isNaN(attendance_2) || isNaN(attendance_3) || isNaN(attendance_4)) {
+    alert("All attendance inputs must be numbers");
+    return;
+  }
+    // ensures all attendances are within parameters
+  if (attendance_1 < 0 || attendance_1 > 33 || attendance_2 < 0 || attendance_2 > 22 || attendance_3 < 0 || 
+  attendance_3 > 44 || attendance_4 < 0 || attendance_4 > 55){
+    alert("Ensure attendance figures fall within given parameters")
+    return;
+  }
+
+  let params = `item_1=${item_1}&attendance_1=${attendance_1}&item_2=${item_2}&attendance_2=${attendance_2}&item_3=${item_3}
+  &attendance_3=${attendance_3}&item_4=${item_4}&attendance_4=${attendance_4}`;
+
+httpRequestWithFailover('sem-maxmin', params, function(err, data) {
+  if (err) {
+    console.error("Request failed:", err);
+    alert("Request failed: " + err);
+    return;
+  }
+
+  let response = JSON.parse(data);
+  if (response.error) {
+    console.error(response.message);
+    alert(response.message);
+    return;
+  }
+
+  let max_attendance = response.max_item;
+  let min_attendance = response.min_item;
+  displayMaxMin(max_attendance, min_attendance);
+});
+}
+
+//this function sorts the attendances from high to low
+function getSortedAttendance()
+{
+  let item_1 = document.getElementById('item_1').textContent
+  let item_2 = document.getElementById('item_2').textContent
+  let item_3 = document.getElementById('item_3').textContent
+  let item_4 = document.getElementById('item_4').textContent
+
+  let attendance_1 = document.getElementById('attendance_1').value
+  let attendance_2 = document.getElementById('attendance_2').value
+  let attendance_3 = document.getElementById('attendance_3').value
+  let attendance_4 = document.getElementById('attendance_4').value
+
+  if (!item_1 || !item_2 || !item_3 || !item_4 || !attendance_1 || !attendance_2 || !attendance_3 || !attendance_4) {
+        alert("Please ensure all attendance fields are completed.");
+        return;
+  }
+  if (isNaN(attendance_1) || isNaN(attendance_2) || isNaN(attendance_3) || isNaN(attendance_4)) {
+    alert("All attendance inputs must be numbers");
+    return;
+  }
+  if (attendance_1 < 0 || attendance_1 > 33 || attendance_2 < 0 || attendance_2 > 22 || attendance_3 < 0 || attendance_3 > 44 || attendance_4 < 0 || attendance_4 > 55){
+    alert("Ensure attendance figures fall within given parameters")
+    return;
+  }
+  let params = `item_1=${item_1}&attendance_1=${attendance_1}&item_2=${item_2}&attendance_2=${attendance_2}&item_3=${item_3}&attendance_3=${attendance_3}&item_4=${item_4}&attendance_4=${attendance_4}`;
+
+  httpRequestWithFailover('sem-sort', params, function(err, data) {
+    if (err) {
+      console.error("Request failed:", err);
+      alert("Request failed: " + err);
+      return;
+    }
+
+    let response = JSON.parse(data);
+    if (response.error) {
+      console.error(response.message);
+      alert(response.message);
+      return;
+    }
+
+    let sorted_attendance_returned = response.sorted_attendance;
+    let sorted_attendance = '';
+    for (let i = 0; i < sorted_attendance_returned.length; i++) {
+      sorted_attendance += sorted_attendance_returned[i]['item'] + ' - ' + sorted_attendance_returned[i]['attendance'] + ' hours' + '\r\n';
+    }
+    displaySortedAttendance(sorted_attendance);
+  });
+}
+
+function getTotal() {
+  let attendance_1 = document.getElementById('attendance_1').value;
+  let attendance_2 = document.getElementById('attendance_2').value;
+  let attendance_3 = document.getElementById('attendance_3').value;
+  let attendance_4 = document.getElementById('attendance_4').value;
+
+  // Check if all attendance inputs are filled
+  if (!attendance_1 || !attendance_2 || !attendance_3 || !attendance_4) {
+    alert("Please ensure all attendance fields are completed.");
+    return;
+  }
+  
+  // Then check if attendance inputs are numbers
+  if (isNaN(attendance_1) || isNaN(attendance_2) || isNaN(attendance_3) || isNaN(attendance_4)) {
+    alert("All attendance inputs must be numbers");
+    return;
+  }
+  if (attendance_1 < 0 || attendance_1 > 33 || attendance_2 < 0 || attendance_2 > 22 || attendance_3 < 0 || attendance_3 > 44 || attendance_4 < 0 || attendance_4 > 55){
+    alert("Ensure attendance figures fall within given parameters")
+    return;
+  }
+
+  let params = `attendance_1=${attendance_1}&attendance_2=${attendance_2}&attendance_3=${attendance_3}&attendance_4=${attendance_4}`;
+
+httpRequestWithFailover('sem-totalhours', params, function(err, data) {
+  if (err) {
+    console.error("Request failed:", err);
+    alert("Request failed: " + err);
+    return;
+  }
+
+  let total_attendance = data;
+  displayTotal(total_attendance);
+});
+}
+
+
+function displayTotal(total_attendance) {
+  document.getElementById('output-text').value = 'Total Attendance (in hours) = ' + total_attendance + ' hours';
+}
+
+function getEngagementScore() {
+
+  let item_1 = document.getElementById('item_1').value
+  let item_2 = document.getElementById('item_2').value
+  let item_3 = document.getElementById('item_3').value
+  let item_4 = document.getElementById('item_4').value  
+
+  let attendance_1 = parseInt(document.getElementById('attendance_1').value);
+  let attendance_2 = parseInt(document.getElementById('attendance_2').value);
+  let attendance_3 = parseInt(document.getElementById('attendance_3').value);
+  let attendance_4 = parseInt(document.getElementById('attendance_4').value);
+
+  // Check if all attendance inputs are filled
+  if (!attendance_1 || !attendance_2 || !attendance_3 || !attendance_4) {
+    alert("Please ensure all attendance fields are completed.");
+    return;
+  }
+  
+  // Then check if attendance inputs are numbers
+  if (isNaN(attendance_1) || isNaN(attendance_2) || isNaN(attendance_3) || isNaN(attendance_4)) {
+    alert("All attendance inputs must be numbers");
+    return;
+  }
+  if (attendance_1 < 0 || attendance_1 > 33 || attendance_2 < 0 || attendance_2 > 22 || attendance_3 < 0 || attendance_3 > 44 || attendance_4 < 0 || attendance_4 > 50){
+    alert("Ensure attendance figures fall within given parameters")
+    return;
+  }
+
+  let params = `attendance_1=${attendance_1}&attendance_2=${attendance_2}&attendance_3=${attendance_3}&attendance_4=${attendance_4}`;
+
+httpRequestWithFailover('sem-stdengagement', params, function(err, data) {
+  if (err) {
+    console.error("Request failed:", err);
+    alert("Request failed: " + err);
+    return;
+  }
+
+  let e = JSON.parse(data);
+  let engagement_score = e.student_engagement_score;
+  displayEngagementScore(engagement_score);
+});
+}
+
+function displayEngagementScore(engagement_score){
+    document.getElementById('output-text').value = 'Your engagement score = ' + engagement_score +'%';   
+}
+
+function getRisk() {
+  let item_1 = document.getElementById('item_1').value;
+  let item_2 = document.getElementById('item_2').value;
+  let item_3 = document.getElementById('item_3').value;
+  let item_4 = document.getElementById('item_4').value;
+
+  let attendance_1 = parseInt(document.getElementById('attendance_1').value);
+  let attendance_2 = parseInt(document.getElementById('attendance_2').value);
+  let attendance_3 = parseInt(document.getElementById('attendance_3').value);
+  let attendance_4 = parseInt(document.getElementById('attendance_4').value);
+  let cutoff = parseInt(document.getElementById('cut-off').value);
+
+  // Check if all attendance inputs are filled
+  if (!attendance_1 || !attendance_2 || !attendance_3 || !attendance_4) {
+    alert("Please ensure all attendance fields are completed.");
+    return;
+  }
+  
+  // Then check if attendance inputs are numbers
+  if (isNaN(attendance_1) || isNaN(attendance_2) || isNaN(attendance_3) || isNaN(attendance_4) ||isNaN(cutoff)) {
+    alert("All inputs must be numbers");
+    return;
+  }
+  if (attendance_1 < 0 || attendance_1 > 33 || attendance_2 < 0 || attendance_2 > 22 || attendance_3 < 0 || attendance_3 > 44 || attendance_4 < 0 || attendance_4 > 55){
+    alert("Ensure attendance figures fall within given parameters")
+    return;
+  }
+  
+  let params = `attendance_1=${attendance_1}&attendance_2=${attendance_2}&attendance_3=${attendance_3}&attendance_4=${attendance_4}&cut-off=${cutoff}`;
+
+  httpRequestWithFailover('sem-riskoffail', params, function(err, data) {
+    if (err) {
+      console.error("Request failed:", err);
+      alert("Request failed: " + err);
+      return;
+    }
+
+    let f = JSON.parse(data);
+    let riskOfFail = f.riskOfFail;
+    displayRiskOfFailure(riskOfFail);
+  });
+}
+
+function displayRiskOfFailure(riskOfFail) {
+  document.getElementById('output-text').value = riskOfFail;
+}
+
+function suggestImprovementPlan() {
+  let item_1 = document.getElementById('item_1').value;
+  let item_2 = document.getElementById('item_2').value;
+  let item_3 = document.getElementById('item_3').value;
+  let item_4 = document.getElementById('item_4').value;
+
+  let attendance_1 = parseInt(document.getElementById('attendance_1').value);
+  let attendance_2 = parseInt(document.getElementById('attendance_2').value);
+  let attendance_3 = parseInt(document.getElementById('attendance_3').value);
+  let attendance_4 = parseInt(document.getElementById('attendance_4').value);
+
+  // Check if all attendance inputs are filled
+  if (!attendance_1 || !attendance_2 || !attendance_3 || !attendance_4) {
+    alert("Please ensure all attendance fields are completed.");
+    return;
+  }
+  
+  // Then check if attendance inputs are numbers
+  if (isNaN(attendance_1) || isNaN(attendance_2) || isNaN(attendance_3) || isNaN(attendance_4)) {
+    alert("All inputs must be numbers");
+    return;
+  }
+  
+  if (attendance_1 < 0 || attendance_1 > 33 || attendance_2 < 0 || attendance_2 > 22 || attendance_3 < 0 || attendance_3 > 44 || attendance_4 < 0 || attendance_4 > 55) {
+    alert("Ensure attendance figures fall within given parameters");
+    return;
+  }
+  
+  let params = `attendance_1=${attendance_1}&attendance_2=${attendance_2}&attendance_3=${attendance_3}&attendance_4=${attendance_4}`;
+
+  httpRequestWithFailover('sem-improvementplan', params, function(err, data) {
+    if (err) {
+      console.error("Request failed:", err);
+      alert("Request failed: " + err);
+      return;
+    }
+
+    let response = JSON.parse(data);
+    let improvementPlan = response.improvement_plan;
+    displayImprovementPlan(improvementPlan);
+  });
+}
+
+function displayImprovementPlan(improvementPlan) {
+  document.getElementById('output-text').value = improvementPlan.join('\n');
+}
+
+</script>
+
+<style type="text/css">
+body  {
+    font-size: 150%;
+    font-family: monospace;
+}
+label {
+    display: inline-block;
+    width: 150px;
+    text-align: left;
+}
+#logo
+{
+    font-family: Calibri, sans-serif;
+    font-weight: lighter;
+    color: #505050;
+    margin: 0.5em;
+}
+
+#sem
+{
+    text-align: center;
+    margin-top: 1em;
+}
+#input-div-1
+{
+    text-align: center;
+    margin-top: 1em;
+    background-color:#d5d8dc  ;
+}
+#input-div-2
+{
+    text-align: center;
+    background-color:#abb2b9 ;
+}
+#output-div
+{
+    text-align: center;
+    background-color:#808b96 ;
+}
+.display-item {
+    font-size: 90%;
+    color: black;
+    font-family: monospace;
+    background-color: white;
+    padding: 0.2em;
+    margin: 0.2em;
+    letter-spacing: 0.1em;
+    width: 380px;
+    text-align: right;
+}
+
+.display-attendance{
+    font-size: 90%;
+    color: black;
+    background-color: white;
+    padding: 0.2em;
+    margin: 0.2em;
+    font-family: monospace;
+    letter-spacing: 0.1em;
+    width: 40px;
+}
+
+.display-output {
+    font-size: 90%;
+    color: black;
+    background-color:white ;
+    padding: 0.2em;
+    margin: 0.2em;
+    font-family: monospace;
+    letter-spacing: 0.1em;
+    width: 600px;
+
+}
+
+.sembutton-active {
+    background-color:   #2874a6  ;
+    color: white;
+    padding: 0px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 18px;
+    margin: 4px 2px;
+    cursor: pointer;
+    height: 50px;
+    width: 400px;
+}
+
+.sembutton-inactive {
+    background-color: gray;
+    color: white;
+    padding: 0px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 18px;
+    margin: 4px 2px;
+    cursor: pointer;
+    height: 50px;
+    width: 400px;
+}
+
+.sembutton-clear {
+    background-color:  #c0392b ;
+    color: white;
+    padding: 0px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 18px;
+    margin: 4px 2px;
+    cursor: pointer;
+    height: 40px;
+    width: 400px;
+}
+
+</style>
+
+</head>
+<body>
+<div id="sem">
+    <div id="logo">
+        Student Engagement Monitoring
+    </div>
+    <div id="input-div-1">
+      <div>
+          <label class="display-item" id="item_1">Lecture sessions</label>
+          <input class="display-attendance" type="text" id="attendance_1" name="attendance_1" placeholder="00"><label>/33 (hours)</label>
+      </div>
+      <div>
+          <label class="display-item" id="item_2">Lab sessions</label>
+          <input class="display-attendance" type="text" id="attendance_2" name="attendance_2" placeholder="00"><label>/22 (hours)</label>
+      </div>
+      <div>
+          <label class="display-item" id="item_3">Support sessions</label>
+          <input class="display-attendance" type="text" id="attendance_3" name="attendance_3" placeholder="00"><label>/44 (hours)</label>
+      </div>
+      <div>
+          <label class="display-item" id="item_4">Canvas activities</label>
+          <input class="display-attendance" type="text" id="attendance_4" name="attendance_4" placeholder="00"><label>/50 (hours)</label>
+      </div>
+  </div>
+  <div id="input-div-2">
+      <label class="display-item" id="cutoff">Cut-off Engagement Score</label>
+      <input class="display-attendance" type="text" id="cut-off" name="cut-off" placeholder="00"><label>/100 (%)</label>
+  </div>
+    <div id="output-div">
+        <textarea class="display-output" id="output-text" rows="5" cols="35" readonly=1 placeholder="Results here..." value="">
+        </textarea>
+    </div>
+    <div>
+        <button class="sembutton-active" onclick="getMaxMin();">Maximum and Minimum Attendance</button>
+    </div>
+    <div>
+        <button class="sembutton-active" onclick="getSortedAttendance();">Sort Attendance</button>
+    </div>
+    <div>
+        <button class="sembutton-active" onclick="getTotal();">Total Attendance Hours</button>
+    </div>
+    <div>
+        <button class="sembutton-active" onclick="getEngagementScore();">Student Engagement Score</button>
+    </div>
+    <div>
+        <button class="sembutton-active" onclick="getRisk();">Risk of Student Failure</button>
+    </div>
+    <div>
+        <button class="sembutton-active" onclick="suggestImprovementPlan();">Suggest Improvement Plan</button>
+    </div>
+    <div>
+        <button class="sembutton-clear" onclick="clearText();">Clear</button>
+    </div>
+
+</div>
+</body>
+
+<script type="text/javascript">
+</script>
+
+</html>
